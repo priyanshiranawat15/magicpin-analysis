@@ -5,14 +5,15 @@ import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
 
-# from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 # table extraction imports
 from bs4 import BeautifulSoup
 import pandas as pd
 
 BASE_URL = 'https://magicpin.in/New-Delhi/Paharganj/Restaurant/Eatfit/store/61a193/delivery/'
-class Extractor(webdriver.Chrome):
+class Item_Handler(webdriver.Chrome):
 
     def __init__(self, driver_path="G:/SeleniumDrivers" ,teardown=False):
         '''
@@ -69,12 +70,26 @@ class Extractor(webdriver.Chrome):
             dropdown_headers = self.find_elements(By.CLASS_NAME,'subListingsHeader')
             for dropdown in dropdown_headers:
                 dropdown.click()
-                time.sleep(1)
+                WebDriverWait(self, 5).until(EC.presence_of_element_located((By.CLASS_NAME, 'categoryItemHolder')))
         except e:
             print("Sublisting header not found on the webpage. ")
 
 
     def add_item(self, name):
+        """
+        Searches for an item on the page and adds it to the cart.
+
+        This method searches for a specific item on the webpage by comparing its name
+        with the 'itemName' attribute of each item in the 'categoryItemHolder' class. 
+        If the item is found, it scrolls to the center of the window and clicks the 'Add' button.
+        Afterward, it clicks the 'addCTA' button to confirm the addition.
+
+        Parameters:
+            name (str): The name of the item to be added.
+
+        Returns:
+            None
+        """
         try:
             print("finding item to add")
             items = self.find_elements(By.CLASS_NAME, 'categoryItemHolder')
@@ -83,27 +98,23 @@ class Extractor(webdriver.Chrome):
                 if item.find_element(By.CLASS_NAME,'itemName').get_attribute('innerText') == name:
                     print("item found\n")
                     holder = item.find_element(By.CLASS_NAME,'itemCountHolder')
-                    print("holder found\n")
                     div_1 = holder.find_element(By.TAG_NAME,'div')
-                    print("div found\n")
                     button = div_1.find_element(By.TAG_NAME, 'button')
-                    print("button found\n")
+
+                    # site bugs on top viewed element so javascript for scrolling window down is executed on page
+                    self.execute_script("window.scrollTo(0, Math.max(0, arguments[0].getBoundingClientRect().top - (window.innerHeight / 2)));", button)
+                                        
                     button.click()
-                    print("button clicked")
-                    time.sleep(1)
-                    self.find_element(By.TAG_NAME,'addCTA').click()
+                    WebDriverWait(self, 5).until(EC.element_to_be_clickable((By.CLASS_NAME, 'addCTA'))).click()
                     break
-            time.sleep(2)
+            WebDriverWait(self, 5).until(EC.presence_of_element_located((By.CLASS_NAME, 'finalPrice')))
         except e:
             print(f"Item {name} not found on the page")
     
+
     def extract_discounted_price(self):
         """
-        Extracts a BeautifulSoup object from a specified div element and prints its text content.
-
-        This function retrieves the outer HTML content of a specific div element identified by the class
-        'catalogItemsHolder' using Selenium. It then creates a BeautifulSoup object and prints its text content.
-
+        Displays discounted prices after adding items in the cart
         Parameters:
             None
 
@@ -112,12 +123,12 @@ class Extractor(webdriver.Chrome):
         """
         try:
             div_element = self.find_element(By.CLASS_NAME,'finalPrice')
-            print(f"Final price after discount: {div_element.text()}")
+            print(f"Final price after discount: {div_element.get_attribute('innerText')}")
         except e:
             print("Add items to discover the discounted price element")
 
 #for code modularity, below code can be a separate run.py file with imports of Extractor class 
-with Extractor() as e:
+with Item_Handler() as e:
     e.landing_page()
     e.click_dropdowns()
     e.add_item(name="Butter Paneer Kulcha Burger")
