@@ -46,8 +46,11 @@ class Extractor(webdriver.Chrome):
         function -
             driver launches the landing page
         '''
-        self.get(BASE_URL)
-        time.sleep(3)
+        try:
+            self.get(BASE_URL)
+            time.sleep(3)
+        except e:
+            print("Page blocked")
 
     def click_dropdowns(self):
         """
@@ -62,12 +65,39 @@ class Extractor(webdriver.Chrome):
         Returns:
             None
         """
-        dropdown_headers = self.find_elements(By.CLASS_NAME,'subListingsHeader')
-        for dropdown in dropdown_headers:
-            dropdown.click()
-            time.sleep(1)
+        try:
+            dropdown_headers = self.find_elements(By.CLASS_NAME,'subListingsHeader')
+            for dropdown in dropdown_headers:
+                dropdown.click()
+                time.sleep(1)
+        except e:
+            print("Sublisting header not found on the webpage. ")
+
+
+    def add_item(self, name):
+        try:
+            print("finding item to add")
+            items = self.find_elements(By.CLASS_NAME, 'categoryItemHolder')
+            for item in items:
+                print("item \n\n")
+                if item.find_element(By.CLASS_NAME,'itemName').get_attribute('innerText') == name:
+                    print("item found\n")
+                    holder = item.find_element(By.CLASS_NAME,'itemCountHolder')
+                    print("holder found\n")
+                    div_1 = holder.find_element(By.TAG_NAME,'div')
+                    print("div found\n")
+                    button = div_1.find_element(By.TAG_NAME, 'button')
+                    print("button found\n")
+                    button.click()
+                    print("button clicked")
+                    time.sleep(1)
+                    self.find_element(By.TAG_NAME,'addCTA').click()
+                    break
+            time.sleep(2)
+        except e:
+            print(f"Item {name} not found on the page")
     
-    def extract_soup_object(self):
+    def extract_discounted_price(self):
         """
         Extracts a BeautifulSoup object from a specified div element and prints its text content.
 
@@ -80,20 +110,15 @@ class Extractor(webdriver.Chrome):
         Returns:
             None
         """
-
-        div_element = self.find_element(By.CLASS_NAME,'catalogItemsHolder').get_attribute("outerHTML")
-        soup = BeautifulSoup(div_element, 'html.parser')
-        print('soup initialized \n\n')
-
-        food_items = soup.find_all('section', class_='categoryItemHolder')
-
-        for item in food_items:
-            food_name = item.find('p', class_='itemName').text.strip()
-            food_price = item.find('span', class_='itemPrice').text.strip()
-            print(f"Food: {food_name}\t\t, Price: {food_price}")
+        try:
+            div_element = self.find_element(By.CLASS_NAME,'finalPrice')
+            print(f"Final price after discount: {div_element.text()}")
+        except e:
+            print("Add items to discover the discounted price element")
 
 #for code modularity, below code can be a separate run.py file with imports of Extractor class 
 with Extractor() as e:
     e.landing_page()
     e.click_dropdowns()
-    e.extract_soup_object()
+    e.add_item(name="Butter Paneer Kulcha Burger")
+    e.extract_discounted_price()
