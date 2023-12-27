@@ -93,52 +93,64 @@ class Extractor(webdriver.Chrome):
         Returns:
             None
         """
+        try:
+            div_element = self.find_element(By.CLASS_NAME, 'catalogItemsHolder').get_attribute("outerHTML")
+            soup = BeautifulSoup(div_element, 'html.parser')
+            print('Soup initialized\n\n')
 
-        div_element = self.find_element(By.CLASS_NAME,'catalogItemsHolder').get_attribute("outerHTML")
-        soup = BeautifulSoup(div_element, 'html.parser')
-        print('soup initialized \n\n')
+            food_items = []
+            for category in soup.find_all('article', 'categoryListing'):
+                category_name = category.find('h4', 'categoryHeading').text.strip()
+                for item in category.find_all('section', class_='categoryItemHolder'):
+                    food_name = item.find('p', class_='itemName').text.strip()
+                    food_price = item.find('span', class_='itemPrice').text.strip()
+                    food_desc = item.find('section', class_='description').text.strip()
+                    food_items.append({'Food': food_name, 'Price': food_price, 'Category': category_name, 'Desc': food_desc})
 
-        food_items = []
-        for category in soup.find_all('article','categoryListing'):
-            category_name = category.find('h4','categoryHeading').text.strip()
-            for item in category.find_all('section', class_='categoryItemHolder'):
-                food_name = item.find('p', class_='itemName').text.strip()
-                # print('item name')
-                food_price = item.find('span', class_='itemPrice').text.strip()
-                # print('item price')
-                food_desc = item.find('section', class_='description').text.strip()
-                # print('item desc')
-                food_items.append({'Food': food_name, 'Price': food_price, 'Category': category_name, 'Desc':food_desc})
-        return food_items
+            return food_items
+        except Exception as e:
+            print(f"Error in extracting soup object: {e}")
+            return []
     
     def data_cleaner(self,food_items, drop_duplicates=True, price_to_numeric=True, use_description=True, drop_nan=True):
+        try:
+            df = pd.DataFrame(food_items)
+            if drop_duplicates:
+                df.drop_duplicates(inplace=True)
 
-        df = pd.DataFrame(food_items)
-        if drop_duplicates:
-            df.drop_duplicates(inplace=True)
+            if price_to_numeric:
+                df['Price'] = pd.to_numeric(df['Price'].str.replace('₹', '').replace(',', ''), errors='coerce')
 
-        if price_to_numeric:
-            df['Price'] = pd.to_numeric(df['Price'].
-                                        str.replace('₹', '').
-                                        replace(',', ''), errors='coerce'
-                                        )
-        if drop_nan:
-            df.dropna(inplace=True)
-        if not use_description:
-            df.drop(['Desc'], inplace=True,axis=1)
-        
-        return df
+            if drop_nan:
+                df.dropna(inplace=True)
+
+            if not use_description:
+                df.drop(['Desc'], inplace=True, axis=1)
+
+            return df
+        except Exception as e:
+            print(f"Error in data cleaning: {e}")
+            return pd.DataFrame()
 
     def to_csv(self, df, name):
-        import pandas as pd
-        df.to_csv(f'{name}.csv', index=False)
+        try:
+            df.to_csv(f'{name}.csv', index=False)
+            print(f"Data successfully saved to {name}.csv")
+        except Exception as e:
+            print(f"Error in saving to CSV: {e}")
 
 
 #for code modularity, below code can be a separate run.py file with imports of Extractor class 
-with Extractor() as e:
-    e.landing_page()
-    e.click_dropdowns()
-    e.click_more_btns()
-    items = e.extract_soup_object()
-    df = e.data_cleaner(food_items=items)
-    e.to_csv(df=df, name='food_menu')
+if __name__ == "__main__":
+    with Extractor() as e:
+        try:
+            e.landing_page()
+            e.click_dropdowns()
+            e.click_more_btns()
+            items = e.extract_soup_object()
+            if items:
+                df = e.data_cleaner(food_items=items)
+                if not df.empty:
+                    e.to_csv(df=df, name='food_menu')
+        except Exception as e:
+            print(f"An error occurred: {e}")
