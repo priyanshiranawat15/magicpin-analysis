@@ -28,7 +28,7 @@ class Item_Handler(webdriver.Chrome):
         self.teardown = teardown #prevents webpage from closing immediately
         os.environ['PATH'] += self.driver_path #sets driver path in os environments
         options = webdriver.ChromeOptions()
-        super(Extractor,self).__init__(options=options)
+        super(Item_Handler,self).__init__(options=options)
         self.maximize_window()
     
     def __exit__(self, exc_type, exc_val, exc_tb):
